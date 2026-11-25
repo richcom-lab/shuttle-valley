@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function admin(){return request.auth != null && request.auth.uid == 'itxBETcAFfPNSGhz8dFcXJa9Jfq2';}
+  function profile(id){return get(/databases/$(database)/documents/profiles/$(id)).data;}
+  function myId(){return admin()?'admin':get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.profile;}
+  function active(){return admin() || (request.auth != null && exists(/databases/$(database)/documents/accounts/$(request.auth.uid)) && profile(myId()).active == true && profile(myId()).access == true && profile(myId()).authUid == request.auth.uid);}
+  function leader(){return admin() || (active() && profile(myId()).role in ['leader','deputy']);}
+  function manage(id){return active() && (leader() || id == myId() || (profile(id).owner == myId() && !profile(id).access));}
+  function avatarOK(id,d){return (!d.active && d.avatar == -1) || (d.active && d.avatar is int && d.avatar >= 0 && d.avatar < 30 && getAfter(/databases/$(database)/documents/avatars/$(string(d.avatar))).data.owner == id);}
+  function logOK(old,d){return d.logs is list && d.logs.size()==old.logs.size()+1 && d.logs.removeAll([d.logs[d.logs.size()-1]])==old.logs && d.logs[d.logs.size()-1].by==myId();}
+  function beforeLock(date){let parts=date.split('-');return request.time < timestamp.date(int(parts[0]),int(parts[1]),int(parts[2])) + duration.value(353,'h');}
+  match /accounts/{uid}{allow read: if admin() || (request.auth!=null && request.auth.uid==uid);allow write: if admin();}
+  match /profiles/{id}{
+   allow read: if true;
+   allow create: if active() && avatarOK(id,request.resource.data) && (admin() || (request.resource.data.owner==myId() && request.resource.data.active && !request.resource.data.access && request.resource.data.role=='member' && request.resource.data.authUid=='' && request.resource.data.email==''));
+   allow update: if manage(id) && avatarOK(id,request.resource.data) && logOK(resource.data,request.resource.data) && (admin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','avatar','logs']));
+   allow delete: if false;
+  }
+  match /avatars/{id}{
+   allow read: if true;
+   allow create: if active() && getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.owner)).data.avatar==int(id) && (admin() || getAfter(/databases/$(database)/documents/profiles/$(request.resource.data.owner)).data.owner==myId() || request.resource.data.owner==myId() || leader());
+   allow update: if active() && request.resource.data==resource.data && manage(resource.data.owner);
+   allow delete: if manage(resource.data.owner) && getAfter(/databases/$(database)/documents/profiles/$(resource.data.owner)).data.avatar!=int(id);
+  }
+  function dayChange(old,d){let keys=d.diff(old).affectedKeys();let changed=d.availability.diff(old.availability).affectedKeys();let last=d.logs[d.logs.size()-1];return active() && logOK(old,d) && ((keys.hasOnly(['availability','logs']) && last.kind=='availability' && changed.hasOnly([last.target]) && manage(last.target) && profile(last.target).active && d.availability[last.target] is bool) || (leader() && keys.hasOnly(['booking','logs']) && last.kind=='booking') || (keys.hasOnly(['matches','logs']) && last.kind=='match' && (leader() || (d.matches.size()==old.matches.size()+1 && d.matches.removeAll([d.matches[d.matches.size()-1]])==old.matches && d.matches[d.matches.size()-1].by==myId()))));}
+  match /days/{date}{allow read: if true;allow create: if dayChange({'availability':{},'booking':null,'matches':[],'logs':[]},request.resource.data);allow update: if dayChange(resource.data,request.resource.data);}
+  function expenseAppend(old,d){let e=d.expenses[d.expenses.size()-1];return d.expenses.size()==old.expenses.size()+1 && d.expenses.removeAll([e])==old.expenses && e.by==myId() && e.amount is int && e.amount>0 && e.label is string && profile(e.payer).active && profile(e.payer).access;}
+  function paymentAppend(old,d){let p=d.payments[d.payments.size()-1];return d.payments.size()==old.payments.size()+1 && d.payments.removeAll([p])==old.payments && p.by==myId() && (p.from==myId() || p.to==myId()) && p.from!=p.to && p.amount is int && p.amount>0 && p.confirmed==false;}
+  function paymentConfirm(old,d){let removed=old.payments.removeAll(d.payments);let added=d.payments.removeAll(old.payments);return removed.size()==1 && added.size()==1 && old.payments.size()==d.payments.size() && removed[0].confirmed==false && added[0].confirmed==true && added[0].diff(removed[0]).affectedKeys().hasOnly(['confirmed']) && removed[0].by!=myId() && (removed[0].from==myId() || removed[0].to==myId());}
+  function financeChange(date,old,d){let keys=d.diff(old).affectedKeys();return active() && logOK(old,d) && ((beforeLock(date) && keys.hasOnly(['attendance','logs']) && leader()) || (beforeLock(date) && keys.hasOnly(['expenses','logs']) && (leader() || expenseAppend(old,d))) || (keys.hasOnly(['payments','logs']) && (paymentAppend(old,d) || paymentConfirm(old,d))));}
+  match /finance/{date}{allow read: if active();allow create: if financeChange(date,{'attendance':{},'expenses':[],'payments':[],'logs':[]},request.resource.data);allow update: if financeChange(date,resource.data,request.resource.data);}
+ }
+}
