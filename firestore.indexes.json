@@ -1,0 +1,1 @@
+{"indexes":[{"collectionGroup":"scribbles","queryScope":"COLLECTION","fields":[{"fieldPath":"generation","order":"ASCENDING"},{"fieldPath":"at","order":"DESCENDING"}]}],"fieldOverrides":[]}
