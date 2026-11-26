@@ -1,0 +1,3 @@
+# Làng Lông v0.7.2
+Ghi đè app.js, logic.js, medals.js, style.css, index.html và assets/medals nếu cần. Giữ firebase-config.js, shuttle.svg, assets/avatars. Publish firestore.rules mới; index không đổi. Không xóa dữ liệu cũ.
+Chi phí sinh hoạt nhập trực tiếp trong Sổ quỹ. Chia đều theo người tự chọn phân bổ chính xác đến đồng như chia tùy chỉnh; chia đều theo người thực tế giữ logic cũ. Hoạt động cũ vẫn chọn được khi sửa. Biểu tượng sinh hoạt mới chỉ hiện khi đã đăng nhập và dữ liệu tài chính đã tải. Không tạo danh mục huy hiệu mới; lịch sử vẫn đọc được. Chưa kiểm thử trình duyệt hoặc Firebase Rules emulator.
