@@ -1,0 +1,4 @@
+# Làng Lông v0.4
+Upload app.js, index.html, style.css, shuttle.svg to repository root, overwrite existing files. Keep firebase-config.js, logic.js, assets and Firestore rules v0.3. Ctrl+F5 after Pages deployment. No migration.
+Public days listener scoped to selected month by document ID; six recent months cached in RAM, refreshed on revisit. Finance still reads all days while authorized to preserve old outstanding debts; listener is detached and private memory cleared on logout/revocation. No persistent private cache, no monthly financial snapshots. Existing day documents include logs and matches, so logs cannot be fetched independently without schema migration. Recovery checks all months before proceeding. Existing rules unchanged and not emulator-tested.
+Test: sign in each role, change months, verify older outstanding debt, log out, check menu and mobile calendar, verify 4-set podium and old profile recovery. Existing v0.3 security limitations remain.
