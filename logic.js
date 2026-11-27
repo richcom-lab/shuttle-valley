@@ -17,3 +17,16 @@ export function balances(attendance,expenses,payments){
  }
  for(const [owner,m] of debts){let total=[...m.values()].reduce((a,b)=>a+b,0),extra=Math.ceil(total/1000)*1000-total;let rows=[...m].map(([payer,n])=>({payer,n,bonus:Math.floor(extra*n/total),rem:(extra*n)%total}));let left=extra-rows.reduce((a,r)=>a+r.bonus,0);rows.sort((a,b)=>b.rem-a.rem||a.payer.localeCompare(b.payer));for(let r of rows){let n=r.n+r.bonus+(left-->0?1:0);add(owner,-n);add(r.payer,n)}}return b;
 }
+
+// Gross responsibility: same rounding as balances, before payments or netting.
+export function monthlyCost(attendance,expenses,id){
+ let cost=0,modern=0;const legacy=new Map(),ids=Object.keys(attendance).sort();
+ for(const e of expenses){
+  if(e.rounding!=='daily-v1'&&!e.allocations){legacy.set(e.payer,(legacy.get(e.payer)||0)+e.amount);continue}
+  let share=e.allocations?.[id]||0;
+  if(!e.allocations)ids.forEach((person,i)=>{if(attendance[person]===id)share+=Math.floor(e.amount/ids.length)+(i<e.amount%ids.length?1:0)});
+  if(e.rounding==='daily-v1'&&e.splitMode!=='custom'&&e.payer!==id)modern+=share;else cost+=share;
+ }
+ for(const [payer,total] of legacy){let share=0;ids.forEach((person,i)=>{if(attendance[person]===id)share+=Math.floor(total/ids.length)+(i<total%ids.length?1:0)});cost+=payer===id?share:Math.ceil(share/1000)*1000}
+ return cost+Math.ceil(modern/1000)*1000;
+}
